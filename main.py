@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from fastapi.templating import Jinja2Templates
 
 from database import close_db_pool, get_db, init_db_pool
 from consultas import autores
@@ -17,11 +18,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+templates = Jinja2Templates(directory="templates")
+
 
 @app.get("/usuarios")
-async def listar_usuarios(datos=Depends(autores)):
+async def listar_usuarios(request: Request, datos=Depends(autores)):
     """
     Endpoint concurrente. `datos` proviene de una conexión lista
     para usar tomada eficientemente del pool.
+    Renderiza el diccionario de resultados directamente en una
+    tabla HTML sin estilos.
     """
-    return datos
+    return templates.TemplateResponse(
+        "request": request, name="index.html", context={"registros":datos}
+    )
