@@ -30,5 +30,7 @@ async def listar_usuarios(request: Request, datos=Depends(autores)):
     tabla HTML sin estilos.
     """
     return templates.TemplateResponse(
-        "request": request, name="index.html", context={"registros":datos}
+        request=request,
+        name="index.html",
+        context={"registros":datos}
     )
