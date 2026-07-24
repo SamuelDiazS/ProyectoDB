@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, Request
 from fastapi.templating import Jinja2Templates
 
 from database import close_db_pool, get_db, init_db_pool
-from consultas import autores
+from consultas import autores, traer_titulos
 
 
 @asynccontextmanager
@@ -34,3 +34,7 @@ async def listar_usuarios(request: Request, datos=Depends(autores)):
         name="index.html",
         context={"registros":datos}
     )
+
+@app.get("/titulo")
+async def traer_titulo(request: Request, datos=Depends(traer_titulos)):
+  return {"traer_titulos"}
