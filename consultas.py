@@ -1,46 +1,59 @@
 import asyncpg
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from loguru import logger
-from database import get_db
-async def autores(db: asyncpg.Connection = Depends(get_db)):
-    """
-    Endpoint concurrente. `db` es una conexión lista para usar
-    tomada eficientemente del pool.
-    """
+
+async def todos_los_autores(db: asyncpg.Connection):
     try:
-        query = "SELECT * FROM autores LIMIT 10;"
+        query = "SELECT * FROM autores;"
         rows = await db.fetch(query)
-        logger.info("ingreso a consultas")
-        registros = [dict(row) for row in rows]
-        logger.debug(f"los usuarios son: {registros}")
-        return registros
+        return [dict(row) for row in rows]
     except Exception as e:
+        logger.error("No se pudo consultar la base de datos")
         raise HTTPException(
             status_code=500, detail=f"Error en la base de datos: {str(e)}"
         )
 
-async def traer_titulos(db: asyncpg.Connection = Depends(get_db)):
+async def autores_por_parametros(db: asyncpg.Connection, año_nacimiento: int, pais: str):
     try:
-        query = "SELECT titulo FROM lista_larga;"
-        rows = await db.fetch(query)
-        logger.info("consulta de titulos")
-        registros = [dict(row) for row in rows]
-        logger.debug(f"los titulos son: {registros}")
-        return registros
+        query = "SELECT * FROM autores WHERE nacimiento = $1 AND pais = $2;"
+        rows = await db.fetch(query, año_nacimiento, pais)
+        return [dict(row) for row in rows]
     except Exception as e:
+        logger.error("No se pudo consultar la base de datos")
+        raise HTTPException(
+            status_code=500, detail=f"Error en la base de datos: {str(e)}"
+        )
+        
+async def promedio_puntuacion_libros(db: asyncpg.Connection, titulo: str, formato: str):
+    try:
+        query = "SELECT titulo, formato FROM lista_larga WHERE formato != 'hardcover' LIMIT 10;"
+        rows = await db.fetch(query)
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error("No se pudo consultar la base de datos")
         raise HTTPException(
             status_code=500, detail=f"Error en la base de datos: {str(e)}"
         )
 
-async def traer_anios(db: asyncpg.Connection = Depends(get_db)):
+async def listar_titulo_autor(db: asyncpg.Connection):
     try:
-        query = "SELECT titulo, autor FROM lista_larga WHERE anio = 2023"
+        query = "SELECT titulo, autor FROM lista_larga ORDER BY titulo;"
         rows = await db.fetch(query)
-        logger.info("ingreso a consultas - titulos")
-        registros = [dict(row) for row in rows]
-        logger.debug(f"los datos son son: {registros}")
-        return registros
+        return [dict(row) for row in rows]
     except Exception as e:
+        logger.error("No se pudo consultar la base de datos")
         raise HTTPException(
             status_code=500, detail=f"Error en la base de datos: {str(e)}"
         )
+
+async def top10_titulo_puntuacion(db: asyncpg.Connection):
+    try:
+        query = "SELECT titulo, puntuacion FROM lista_larga ORDER BY puntuacion DESC LIMIT 10;"
+        rows = await db.fetch(query)
+        return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error("No se pudo consultar la base de datos")
+        raise HTTPException(
+            status_code=500, detail=f"Error en la base de datos: {str(e)}"
+        )
+

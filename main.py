@@ -1,44 +1,127 @@
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Depends, Request
+from typing import Annotated
+from loguru import logger
+import asyncpg
+from fastapi import Depends, FastAPI, Request
 from fastapi.templating import Jinja2Templates
 
-from database import close_db_pool, get_db, init_db_pool
-from consultas import autores, traer_titulos, traer_anios
+from consultas import (
+    todos_los_autores,
+    autores_por_parametros,
+    promedio_puntuacion_libros,
+    listar_titulo_autor,
+    top10_titulo_puntuacion,
+)
+from database import init_db_pool, close_db_pool, get_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Evento de inicio: creamos el pool
+    """Gestiona el ciclo de vida del pool de conexiones."""
     await init_db_pool()
     yield
-    # Evento de apagado: cerramos el pool
     await close_db_pool()
 
 
 app = FastAPI(lifespan=lifespan)
-
 templates = Jinja2Templates(directory="templates")
 
 
-@app.get("/usuarios")
-async def listar_usuarios(request: Request, datos=Depends(autores)):
+@app.get("/autores")
+async def listar_usuarios(
+    db:asyncpg.Connection = Depends(get_db),
+):
     """
-    Endpoint concurrente. `datos` proviene de una conexión lista
-    para usar tomada eficientemente del pool.
-    Renderiza el diccionario de resultados directamente en una
-    tabla HTML sin estilos.
+    Endpoint concurrente. db proviene de una conexión lista para usar
+    tomada eficientemente del pool. Los parámetros de negocio (año, pais)
+    se pasan explícitamente a la función de consulta.
     """
+    datos = await todos_los_autores(db)
+    return datos
+
+
+@app.get("/autores1")
+async def listar(
+    request: Request,
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+    year: int | None = None,
+    pais: str | None = None
+):
+    if year is None and pais is None:
+        datos = await todos_los_autores(db)
+    else:
+        datos = await autores_por_parametros(db, year, pais)
+    return datos
+
+
+
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
+
+@app.get("/lista-larga/html")
+async def listar_titulo_autor_html(
+    request: Request,
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+    titulo: str | None = None,
+    autor: str | None = None,
+):
+    datos = await listar_titulo_autor(db)
+
+    if titulo:
+        filtro_titulo = titulo.strip().lower()
+        datos = [
+            libro for libro in datos
+            if filtro_titulo in str(libro.get("titulo", "")).lower()
+        ]
+
+    if autor:
+        filtro_autor = autor.strip().lower()
+        datos = [
+            libro for libro in datos
+            if filtro_autor in str(libro.get("autor", "")).lower()
+        ]
+
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
-        context={"registros":datos}
+        name="respuesta.html",
+        context={"autores": [], "libros": datos, "titulo": titulo or "", "autor": autor or ""},
     )
 
-@app.get("/titulo")
-async def traer_titulo(datos=Depends(traer_titulos)):
-    return datos
 
-@app.get("/anio")
-async def traer_anio(datos=Depends(traer_anios)):
-    return datos
+@app.get("/autores/html")
+async def listar_autores_html(
+    request: Request,
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+    year: int | None = None,
+    pais: str | None = None,
+):
+    logger.info(f"Parametros recibidos: year={year}, pais={pais}")
+    if year is None and pais is None:
+        datos = await todos_los_autores(db)
+    else:
+        datos = await autores_por_parametros(db, year, pais)
+    return templates.TemplateResponse(request=request, name="respuesta.html", context={"autores": datos, "libros": [], "mejores": []})
+
+@app.get("/top10/html")
+async def top10_libros_html(
+    request: Request,
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+):
+    datos = await top10_titulo_puntuacion(db)
+    return templates.TemplateResponse(
+        request=request,
+        name="respuesta.html",
+        context={"autores": [], "libros": [], "mejores": datos},
+    )
+
+@app.get("/dura")
+async def listar_autores_html(
+    request: Request,
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+    titulo: str | None = None,
+    formato: str | None = None,
+):
+    datos = await promedio_puntuacion_libros(db)
+    return templates.TemplateResponse(request=request, name="respuesta.html", context={"autores": [], "formato": [], "titulo": datos})

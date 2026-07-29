@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Resultado - Autores</title>
+</head>
+<body>
+  <h1>Resultado</h1>
+
+  <p><a href="/">Volver</a></p>
+
+<h2>Resultados por título y autor</h2>
+  <table border="1">
+    <tr>
+      <th>Título</th>
+      <th>Autor</th>
+    </tr>
+    {% for libro in libros %}
+    <tr>
+      <td>{{ libro.titulo }}</td>
+      <td>{{ libro.autor }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2">No se encontraron resultados.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Top 10 libros por puntuación</h2>
+  <table border="1">
+    <tr>
+      <th>Título</th>
+      <th>Puntuación</th>
+    </tr>
+    {% for libro in mejores %}
+    <tr>
+      <td>{{ libro.titulo }}</td>
+      <td>{{ libro.puntuacion }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2">No se encontraron resultados para el top 10.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Formato de los libros</h2>
+  <table border="1">
+    <tr>
+      <th>Título</th>
+      <th>Puntuación</th>
+    </tr>
+    {% for formato in titulo %}
+    <tr>
+      <td>{{ formato.titulo }}</td>
+      <td>{{ formato.formato }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="2">No se encontraron resultados para el top 10.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Autores</h2>
+  <table border="1">
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Nacimiento</th>
+      <th>País</th>
+    </tr>
+    {% for a in autores %}
+    <tr>
+      <td>{{ a.id }}</td>
+      <td>{{ a.nombre }}</td>
+      <td>{{ a.nacimiento }}</td>
+      <td>{{ a.pais }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">No se encontraron autores.</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
