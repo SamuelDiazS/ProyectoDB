@@ -18,9 +18,15 @@ from database import init_db_pool, close_db_pool, get_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db_pool()
+    try:
+        await init_db_pool()
+    except Exception as exc:
+        logger.warning(f"No se pudo inicializar el pool de base de datos: {exc}")
     yield
-    await close_db_pool()
+    try:
+        await close_db_pool()
+    except Exception as exc:
+        logger.warning(f"No se pudo cerrar el pool de base de datos: {exc}")
 
 app = FastAPI(lifespan=lifespan)
 BASE_DIR = Path(__file__).resolve().parent.parent
