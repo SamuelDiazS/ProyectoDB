@@ -1,20 +1,21 @@
-from pathlib import Path
-from fastapi import Depends, FastAPI
-from fastapi.templating import Jinja2Templates
-from starlette.requests import Request
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
+
 import asyncpg
+from fastapi import Depends, FastAPI, Request
+from fastapi.templating import Jinja2Templates
 from loguru import logger
 
 from consultas import (
-    todos_los_autores,
     autores_por_parametros,
-    promedio_puntuacion_libros,
     listar_titulo_autor,
+    promedio_puntuacion_libros,
+    todos_los_autores,
     top10_titulo_puntuacion,
 )
-from database import init_db_pool, close_db_pool, get_db
+from database import close_db_pool, get_db, init_db_pool
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,14 +29,21 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"No se pudo cerrar el pool de base de datos: {exc}")
 
-app = FastAPI(lifespan=lifespan)
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+app = FastAPI(title="ProyectoDB", lifespan=lifespan)
+BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
 
 @app.get("/autores")
 async def listar_usuarios(db: asyncpg.Connection = Depends(get_db)):
-    datos = await todos_los_autores(db)
-    return datos
+    return await todos_los_autores(db)
+
 
 @app.get("/autores1")
 async def listar(
@@ -45,14 +53,9 @@ async def listar(
     pais: str | None = None,
 ):
     if year is None and pais is None:
-        datos = await todos_los_autores(db)
-    else:
-        datos = await autores_por_parametros(db, year, pais)
-    return datos
+        return await todos_los_autores(db)
+    return await autores_por_parametros(db, year, pais)
 
-@app.get("/")
-async def index(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/lista-larga/html")
 async def listar_titulo_autor_html(
@@ -80,8 +83,15 @@ async def listar_titulo_autor_html(
     return templates.TemplateResponse(
         request=request,
         name="respuesta.html",
-        context={"autores": [], "libros": datos, "mejores": [], "titulo": titulo or "", "autor": autor or ""},
+        context={
+            "autores": [],
+            "libros": datos,
+            "mejores": [],
+            "titulo": titulo or "",
+            "autor": autor or "",
+        },
     )
+
 
 @app.get("/autores/html")
 async def listar_autores_html(
@@ -95,7 +105,12 @@ async def listar_autores_html(
         datos = await todos_los_autores(db)
     else:
         datos = await autores_por_parametros(db, year, pais)
-    return templates.TemplateResponse(request=request, name="respuesta.html", context={"autores": datos, "libros": [], "mejores": []})
+    return templates.TemplateResponse(
+        request=request,
+        name="respuesta.html",
+        context={"autores": datos, "libros": [], "mejores": []},
+    )
+
 
 @app.get("/top10/html")
 async def top10_libros_html(
@@ -109,16 +124,23 @@ async def top10_libros_html(
         context={"autores": [], "libros": [], "mejores": datos},
     )
 
+
 @app.get("/dura")
-async def listar_autores_html(
+async def promedio_libros_html(
     request: Request,
     db: Annotated[asyncpg.Connection, Depends(get_db)],
     titulo: str | None = None,
     formato: str | None = None,
 ):
-    datos = await promedio_puntuacion_libros(db, titulo, formato)
+    datos = await promedio_puntuacion_libros(db, titulo or "", formato or "")
     return templates.TemplateResponse(
         request=request,
         name="respuesta.html",
-        context={"autores": [], "libros": datos, "mejores": [], "titulo": titulo or "", "formato": formato or ""},
+        context={
+            "autores": [],
+            "libros": datos,
+            "mejores": [],
+            "titulo": titulo or "",
+            "formato": formato or "",
+        },
     )
